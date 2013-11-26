@@ -1,4 +1,4 @@
-// The zabbixagent package allows you to query zabbix agents running over a network.
+// The zagent package allows you to query zabbix agents running over a network.
 package zagent
 
 import (

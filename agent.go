@@ -77,6 +77,59 @@ func (a *Agent) GetTimeout(key string, timeout time.Duration) (*Response, error)
 	return res, nil
 }
 
+// Call agent.ping on the zabbix agent. Returns true if it
+// gets the correct response ("1") and doesn't receive any
+// errors in the process.
+func (a *Agent) Ping() (bool, error) {
+	return a.PingTimeout(DefaultTimeout)
+}
+
+// Same as Agent.Ping() but allows a timeout to be specified.
+func (a *Agent) PingTimeout(timeout time.Duration) (bool, error) {
+	res, err := a.GetTimeout("agent.ping", timeout)
+	if err != nil {
+		return false, err
+	}
+
+	if res.Supported() && string(res.Data) == "1" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// Calls agent.hostname on the zabbix agent and returns the hostname
+// and/or any errors associated with the action.
+func (a *Agent) Hostname() (string, error) {
+	return a.HostnameTimeout(DefaultTimeout)
+}
+
+// Same as Agent.Hostname() but called with the timeout specified.
+func (a *Agent) HostnameTimeout(timeout time.Duration) (string, error) {
+	res, err := a.GetTimeout("agent.hostname", timeout)
+	if err != nil {
+		return "", err
+	}
+
+	return string(res.Data), nil
+}
+
+// Calls agent.version on the zabbix agent and returns the version
+// and/or any errors associated with the action.
+func (a *Agent) Version() (string, error) {
+	return a.VersionTimeout(DefaultTimeout)
+}
+
+// Same as Agent.Version() but called with the timeout specified.
+func (a *Agent) VersionTimeout(timeout time.Duration) (string, error) {
+	res, err := a.GetTimeout("agent.version", timeout)
+	if err != nil {
+		return "", err
+	}
+
+	return string(res.Data), nil
+}
+
 // Response is the response from the zabbix agent.
 // Response.Data is generally what most people care
 // about. See the wire format here:

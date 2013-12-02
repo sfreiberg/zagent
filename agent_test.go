@@ -3,6 +3,7 @@ package zagent
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -19,10 +20,6 @@ func TestAgent(t *testing.T) {
 	res, err := agent.Get("agent.ping")
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if !res.Supported() {
-		t.Fatal("agent.ping is not supported. Very strange.")
 	}
 
 	if string(res.Data) != "1" {
@@ -77,4 +74,24 @@ func TestAgentVersion(t *testing.T) {
 	}
 
 	fmt.Println("Zabbix version:", version)
+}
+
+func TestAgentUnsupported(t *testing.T) {
+	zabbixHost := os.Getenv("ZABBIX_HOST")
+	fmt.Println("Testing against:", zabbixHost)
+
+	agent := NewAgent(zabbixHost)
+
+	res, err := agent.Get("Supercalifragilisticexpialidocious")
+	if err == nil {
+		t.Fatal("An error isn't thrown when calling an unknown key")
+	}
+
+	if err != nil && !strings.HasSuffix(err.Error(), " is not supported") {
+		t.Fatal(err)
+	}
+
+	if res.Supported() {
+		t.Fatal("Response.Supported() reports true")
+	}
 }

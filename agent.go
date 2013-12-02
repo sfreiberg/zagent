@@ -20,6 +20,10 @@ var (
 	DefaultTimeout = time.Duration(30 * time.Second)
 )
 
+const (
+	NotSupported = "ZBX_NOTSUPPORTED"
+)
+
 // Creates a new Agent with a default port of 10050
 func NewAgent(host string) *Agent {
 	return &Agent{Host: host, Port: 10050}
@@ -72,6 +76,10 @@ func (a *Agent) GetTimeout(key string, timeout time.Duration) (*Response, error)
 			return nil, DataLengthBufferTooSmall
 		}
 		return nil, DataLengthOverflow
+	}
+
+	if string(res.Data) == NotSupported {
+		return res, fmt.Errorf("%s is not supported", key)
 	}
 
 	return res, nil
@@ -141,9 +149,11 @@ type Response struct {
 	key        string
 }
 
-// Returns true if the command is supported, false if it wasn't
+// Returns true if the key is supported, false if it wasn't.
+// Most of the time you shouldn't need to call this as Agent.Get()
+// will return an error if the key is unsupported.
 func (r *Response) Supported() bool {
-	return string(r.Data) != "ZBX_NOTSUPPORTED"
+	return string(r.Data) != NotSupported
 }
 
 // Returns the key that was used in the query against the Zabbix agent.

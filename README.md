@@ -24,18 +24,19 @@ package main
 
 import (
 	"github.com/sfreiberg/zagent"
+
 	"fmt"
 )
 
 func main() {
-	opts := zagent.NewOptions()
-	opts.Host = "www.example.com"
+	agent := zagent.NewAgent("127.0.0.1")
 
-	res, err := zagent.Get("agent.ping", opts)
+	res, err := agent.Get("agent.ping")
 	if err != nil {
 		panic(err)
 	}
-	
+
 	fmt.Printf("%s\n", res.Data)
 }
+
 ```

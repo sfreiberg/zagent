@@ -22,7 +22,7 @@ func TestAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if string(res.Data) != "1" {
+	if res.DataAsString() != "1" {
 		t.Fatal("agent.ping results are incorrect.")
 	}
 }

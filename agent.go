@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -78,7 +79,7 @@ func (a *Agent) GetTimeout(key string, timeout time.Duration) (*Response, error)
 		return nil, DataLengthOverflow
 	}
 
-	if string(res.Data) == NotSupported {
+	if res.Supported() == false {
 		return res, fmt.Errorf("%s is not supported", key)
 	}
 
@@ -99,7 +100,7 @@ func (a *Agent) PingTimeout(timeout time.Duration) (bool, error) {
 		return false, err
 	}
 
-	if res.Supported() && string(res.Data) == "1" {
+	if res.Supported() && res.DataAsString() == "1" {
 		return true, nil
 	}
 
@@ -119,7 +120,7 @@ func (a *Agent) HostnameTimeout(timeout time.Duration) (string, error) {
 		return "", err
 	}
 
-	return string(res.Data), nil
+	return res.DataAsString(), nil
 }
 
 // Calls agent.version on the zabbix agent and returns the version
@@ -135,7 +136,7 @@ func (a *Agent) VersionTimeout(timeout time.Duration) (string, error) {
 		return "", err
 	}
 
-	return string(res.Data), nil
+	return res.DataAsString(), nil
 }
 
 // Response is the response from the zabbix agent.
@@ -144,7 +145,7 @@ func (a *Agent) VersionTimeout(timeout time.Duration) (string, error) {
 // https://www.zabbix.com/documentation/2.2/manual/appendix/items/activepassive
 type Response struct {
 	Header     []byte // This should always be: ZBXD\x01
-	DataLength uint64 // I assume this should match the length of Data but not really tested
+	DataLength uint64 // The size of the response
 	Data       []byte // The results of the query
 	key        string
 }
@@ -153,12 +154,37 @@ type Response struct {
 // Most of the time you shouldn't need to call this as Agent.Get()
 // will return an error if the key is unsupported.
 func (r *Response) Supported() bool {
-	return string(r.Data) != NotSupported
+	return r.DataAsString() != NotSupported
 }
 
 // Returns the key that was used in the query against the Zabbix agent.
 func (r *Response) Key() string {
 	return r.key
+}
+
+// Convenience wrapper to return Data as a string.
+func (r *Response) DataAsString() string {
+	return string(r.Data)
+}
+
+// Convenience wrapper to return Data as an int.
+func (r *Response) DataAsInt() (int, error) {
+	return strconv.Atoi(r.DataAsString())
+}
+
+// Convenience wrapper to return Data as an int64.
+func (r *Response) DataAsInt64() (int64, error) {
+	return strconv.ParseInt(r.DataAsString(), 10, 64)
+}
+
+// Convenience wrapper to return Data as uint64.
+func (r *Response) DataAsUint64() (uint64, error) {
+	return strconv.ParseUint(r.DataAsString(), 10, 64)
+}
+
+// Convenience wrapper to return Data as a float64.
+func (r *Response) DataAsFloat64() (float64, error) {
+	return strconv.ParseFloat(r.DataAsString(), 64)
 }
 
 // Create a new Response type

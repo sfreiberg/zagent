@@ -17,7 +17,7 @@ func TestAgent(t *testing.T) {
 
 	agent := NewAgent(zabbixHost)
 
-	res, err := agent.Get("agent.ping")
+	res, err := agent.Query("agent.ping", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestAgentPing(t *testing.T) {
 
 	agent := NewAgent(zabbixHost)
 
-	pingable, err := agent.Ping()
+	pingable, err := agent.AgentPing(0)
 	if err != nil {
 		t.Fatal("Ping test failed with error:", err)
 	}
@@ -47,7 +47,7 @@ func TestAgentHostname(t *testing.T) {
 
 	agent := NewAgent(zabbixHost)
 
-	hostname, err := agent.Hostname()
+	hostname, err := agent.AgentHostname(0)
 	if err != nil {
 		t.Fatal("Hostname test failed with error:", err)
 	}
@@ -64,7 +64,7 @@ func TestAgentVersion(t *testing.T) {
 
 	agent := NewAgent(zabbixHost)
 
-	version, err := agent.Version()
+	version, err := agent.AgentVersion(0)
 	if err != nil {
 		t.Fatal("Version test failed with error:", err)
 	}
@@ -82,7 +82,7 @@ func TestAgentUnsupported(t *testing.T) {
 
 	agent := NewAgent(zabbixHost)
 
-	res, err := agent.Get("Supercalifragilisticexpialidocious")
+	res, err := agent.Query("Supercalifragilisticexpialidocious", 0)
 	if err == nil {
 		t.Fatal("An error isn't thrown when calling an unknown key")
 	}

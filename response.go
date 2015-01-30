@@ -1,5 +1,7 @@
 package zagent
 
+import "strings"
+
 // Response is the response from the zabbix agent.
 // Response.Data is generally what most people care
 // about. See the wire format here:
@@ -15,7 +17,7 @@ type Response struct {
 // Most of the time you shouldn't need to call this as Agent.Get()
 // will return an error if the key is unsupported.
 func (r *Response) Supported() bool {
-	return r.DataS() != NotSupported
+	return !strings.Contains(r.DataS(), NotSupported)
 }
 
 // Returns the key that was used in the query against the Zabbix agent.

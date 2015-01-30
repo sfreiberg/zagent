@@ -31,7 +31,7 @@ import (
 func main() {
 	agent := zagent.NewAgent("127.0.0.1")
 
-	res, err := agent.Get("agent.ping")
+	res, err := agent.Query("agent.ping", 0)
 	if err != nil {
 		panic(err)
 	}

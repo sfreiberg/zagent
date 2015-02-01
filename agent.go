@@ -88,9 +88,7 @@ func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
 	return res, nil
 }
 
-/*
-	Run query and return the result as a string.
-*/
+// Run query and return the result (Response.Data) as a string.
 func (a *Agent) QueryS(key string, timeout time.Duration) (string, error) {
 	res, err := a.Query(key, timeout)
 	if err != nil {
@@ -100,9 +98,7 @@ func (a *Agent) QueryS(key string, timeout time.Duration) (string, error) {
 	return res.DataS(), nil
 }
 
-/*
-	Run query and return the result as a bool.
-*/
+// Run query and return the result (Response.Data) as a bool.
 func (a *Agent) QueryBool(key string, timeout time.Duration) (bool, error) {
 	res, err := a.Query(key, timeout)
 	if err != nil {
@@ -112,9 +108,37 @@ func (a *Agent) QueryBool(key string, timeout time.Duration) (bool, error) {
 	return strconv.ParseBool(res.DataS())
 }
 
-/*
-	Call agent.hostname on the zabbix agent.
-*/
+// Run query and return the result (Response.Data) as an int.
+func (a *Agent) QueryInt(key string, timeout time.Duration) (int, error) {
+	res, err := a.Query(key, timeout)
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.Atoi(res.DataS())
+}
+
+// Run query and return the result (Response.Data) as an int64.
+func (a *Agent) QueryInt64(key string, timeout time.Duration) (int64, error) {
+	res, err := a.Query(key, timeout)
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.ParseInt(res.DataS(), 10, 64)
+}
+
+// Run query and return the result (Response.Data) as an float64.
+func (a *Agent) QueryFloat64(key string, timeout time.Duration) (float64, error) {
+	res, err := a.Query(key, timeout)
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.ParseFloat(res.DataS(), 64)
+}
+
+// Call agent.hostname on the zabbix agent.
 func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
 	return a.QueryS("agent.hostname", timeout)
 }
@@ -125,16 +149,7 @@ func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
 	errors in the process.
 */
 func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
-	res, err := a.Query("agent.ping", timeout)
-	if err != nil {
-		return false, err
-	}
-
-	if res.Supported() && res.DataS() == "1" {
-		return true, nil
-	}
-
-	return false, nil
+	return a.QueryBool("agent.ping", timeout)
 }
 
 /*
@@ -142,10 +157,5 @@ func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
 	and/or any errors associated with the action.
 */
 func (a *Agent) AgentVersion(timeout time.Duration) (string, error) {
-	res, err := a.Query("agent.version", timeout)
-	if err != nil {
-		return "", err
-	}
-
-	return res.DataS(), nil
+	return a.QueryS("agent.version", timeout)
 }

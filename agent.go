@@ -4,6 +4,7 @@ package zagent
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -25,15 +26,32 @@ const (
 	NotSupported = "ZBX_NOTSUPPORTED"
 )
 
-// Creates a new Agent with a default port of 10050
-func NewAgent(host string) *Agent {
-	return &Agent{Host: host, Port: 10050}
+// Filesystem respresents a Zabbix filesystem as presented by vfs.fs.discovery
+type Filesystem struct {
+	Name string
+	Type string
+}
+
+// NetworkInterface represents a Zabbix network interface as presented by net.if.discovery
+type NetworkInterface struct {
+	Name string
+}
+
+// CPU represents a Zabbix cpu as presented by system.cpu.discovery
+type CPU struct {
+	Number float64
+	Status string
 }
 
 // Agent represents a remote zabbix agent
 type Agent struct {
 	Host string
 	Port int
+}
+
+// Creates a new Agent with a default port of 10050
+func NewAgent(host string) *Agent {
+	return &Agent{Host: host, Port: 10050}
 }
 
 // Returns a string with the host and port concatenated to host:port
@@ -136,6 +154,85 @@ func (a *Agent) QueryFloat64(key string, timeout time.Duration) (float64, error)
 	}
 
 	return strconv.ParseFloat(res.DataS(), 64)
+}
+
+/*
+	Run query and convert the JSON to a map[string][]map[string]interface{}.
+	This is a raw version of the query and most people are expected to use
+	the Discover* methods.
+*/
+func (a *Agent) queryJSON(key string, timeout time.Duration) (map[string][]map[string]interface{}, error) {
+	data := make(map[string][]map[string]interface{})
+
+	res, err := a.Query(key, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(res.Data, &data)
+	return data, err
+}
+
+// Return an array of Filesystem structs.
+func (a *Agent) DiscoverFilesystems(timeout time.Duration) ([]*Filesystem, error) {
+	fs := []*Filesystem{}
+
+	data, err := a.queryJSON("vfs.fs.discovery", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range data["data"] {
+		filesystem := &Filesystem{
+			Name: f["{#FSNAME}"].(string),
+			Type: f["{#FSTYPE}"].(string),
+		}
+
+		fs = append(fs, filesystem)
+	}
+
+	return fs, err
+}
+
+// Return an array of NetworkInterface structs.
+func (a *Agent) DiscoverNetworkInterfaces(timeout time.Duration) ([]*NetworkInterface, error) {
+	in := []*NetworkInterface{}
+
+	data, err := a.queryJSON("net.if.discovery", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range data["data"] {
+		networkIface := &NetworkInterface{
+			Name: i["{#IFNAME}"].(string),
+		}
+
+		in = append(in, networkIface)
+	}
+
+	return in, err
+}
+
+// Return an array of CPUs.
+func (a *Agent) DiscoverCPUs(timeout time.Duration) ([]*CPU, error) {
+	cpus := []*CPU{}
+
+	data, err := a.queryJSON("system.cpu.discovery", timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range data["data"] {
+		cpu := &CPU{
+			Number: i["{#CPU.NUMBER}"].(float64),
+			Status: i["{#CPU.STATUS}"].(string),
+		}
+
+		cpus = append(cpus, cpu)
+	}
+
+	return cpus, err
 }
 
 // Call agent.hostname on the zabbix agent.

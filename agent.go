@@ -157,6 +157,37 @@ func (a *Agent) QueryFloat64(key string, timeout time.Duration) (float64, error)
 }
 
 /*
+	Run query and convert the result to the most appropriate type. Useful when
+	you want a concrete type but don't know it ahead of time.
+*/
+func (a *Agent) QueryInterface(key string, timeout time.Duration) (interface{}, error) {
+	res, err := a.QueryS(key, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempt int64
+	i, err := strconv.ParseInt(res, 10, 64)
+	if err == nil {
+		return i, nil
+	}
+
+	// Attempt float64
+	f, err := strconv.ParseFloat(res, 64)
+	if err == nil {
+		return f, nil
+	}
+
+	// Attempt bool
+	b, err := strconv.ParseBool(res)
+	if err == nil {
+		return b, nil
+	}
+
+	return res, nil
+}
+
+/*
 	Run query and convert the JSON to a map[string][]map[string]interface{}.
 	This is a raw version of the query and most people are expected to use
 	the Discover* methods.

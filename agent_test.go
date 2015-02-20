@@ -95,3 +95,48 @@ func TestAgentUnsupported(t *testing.T) {
 		t.Fatal("Response.Supported() reports true")
 	}
 }
+
+func TestQueryInterface(t *testing.T) {
+	zabbixHost := os.Getenv("ZABBIX_HOST")
+
+	agent := NewAgent(zabbixHost)
+
+	// Should return a string
+	hostname, err := agent.QueryInterface("agent.hostname", 0)
+	if err != nil {
+		t.Fatal("Couldn't get hostname: " + err.Error())
+	}
+
+	switch hostname.(type) {
+	default:
+		t.Fatal("agent.hostname didn't get converted to a string")
+	case string:
+		fmt.Println("agent.hostname returned a string")
+	}
+
+	// Should return a float64
+	load, err := agent.QueryInterface("system.cpu.load", 0)
+	if err != nil {
+		t.Fatal("Couldn't get cpu load: " + err.Error())
+	}
+
+	switch load.(type) {
+	default:
+		t.Fatal("system.cpu.load didn't get converted to a float64")
+	case float64:
+		fmt.Println("system.cpu.load returned a float64")
+	}
+
+	// Should return an int64
+	cpus, err := agent.QueryInterface("system.cpu.num", 0)
+	if err != nil {
+		t.Fatal("Couldn't get number of cpus: " + err.Error())
+	}
+
+	switch cpus.(type) {
+	default:
+		t.Fatal("system.cpu.num didn't get converted to an int64")
+	case int64:
+		fmt.Println("system.cpu.num was converted to int64")
+	}
+}

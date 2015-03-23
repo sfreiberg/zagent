@@ -22,7 +22,7 @@ func TestAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if res.DataS() != "1" {
+	if res.String() != "1" {
 		t.Fatal("agent.ping results are incorrect.")
 	}
 }
@@ -83,8 +83,12 @@ func TestAgentUnsupported(t *testing.T) {
 	agent := NewAgent(zabbixHost)
 
 	res, err := agent.Query("Supercalifragilisticexpialidocious", 0)
-	if err == nil {
-		t.Fatal("An error isn't thrown when calling an unknown key")
+	if err != nil {
+		t.Fatal("An error was thrown on an unknown key. Response.Supported() should return false not throw an error.")
+	}
+
+	if res.Supported() {
+		t.Fatal("Response says supported when calling an unknown key")
 	}
 
 	if err != nil && !strings.HasSuffix(err.Error(), " is not supported") {
@@ -102,10 +106,11 @@ func TestQueryInterface(t *testing.T) {
 	agent := NewAgent(zabbixHost)
 
 	// Should return a string
-	hostname, err := agent.QueryInterface("agent.hostname", 0)
+	res, err := agent.Query("agent.hostname", 0)
 	if err != nil {
 		t.Fatal("Couldn't get hostname: " + err.Error())
 	}
+	hostname := res.Interface()
 
 	switch hostname.(type) {
 	default:
@@ -115,10 +120,12 @@ func TestQueryInterface(t *testing.T) {
 	}
 
 	// Should return a float64
-	load, err := agent.QueryInterface("system.cpu.load", 0)
+	res, err = agent.Query("system.cpu.load", 0)
 	if err != nil {
 		t.Fatal("Couldn't get cpu load: " + err.Error())
 	}
+
+	load := res.Interface()
 
 	switch load.(type) {
 	default:
@@ -128,10 +135,12 @@ func TestQueryInterface(t *testing.T) {
 	}
 
 	// Should return an int64
-	cpus, err := agent.QueryInterface("system.cpu.num", 0)
+	res, err = agent.Query("system.cpu.num", 0)
 	if err != nil {
 		t.Fatal("Couldn't get number of cpus: " + err.Error())
 	}
+
+	cpus := res.Interface()
 
 	switch cpus.(type) {
 	default:

@@ -2,19 +2,14 @@
 package zagent
 
 import (
-	"bufio"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
-	"strconv"
 	"time"
 )
 
 var (
-	// http://localhost:6060/pkg/encoding/binary/#Uvarint
 	DataLengthBufferTooSmall = errors.New("DataLength buffer too small")
 	DataLengthOverflow       = errors.New("DataLength is too large")
 
@@ -65,8 +60,6 @@ func (a *Agent) hostPort() string {
 	If timeout is < 1 DefaultTimeout will be used.
 */
 func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
-	res := newResponse()
-
 	if timeout < 1 {
 		timeout = DefaultTimeout
 	}
@@ -82,109 +75,7 @@ func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
 		return nil, err
 	}
 
-	dataLength := make([]byte, 8)
-
-	reader := bufio.NewReader(conn)
-	reader.Read(res.Header)
-	reader.Read(dataLength)
-	res.Data, _ = ioutil.ReadAll(reader)
-
-	// Convert dataLength from binary to uint
-	var bytesRead int
-	res.DataLength, bytesRead = binary.Uvarint(dataLength)
-	if bytesRead <= 0 {
-		if bytesRead == 0 {
-			return nil, DataLengthBufferTooSmall
-		}
-		return nil, DataLengthOverflow
-	}
-
-	if res.Supported() == false {
-		return res, fmt.Errorf("%s is not supported", key)
-	}
-
-	return res, nil
-}
-
-// Run query and return the result (Response.Data) as a string.
-func (a *Agent) QueryS(key string, timeout time.Duration) (string, error) {
-	res, err := a.Query(key, timeout)
-	if err != nil {
-		return "", err
-	}
-
-	return res.DataS(), nil
-}
-
-// Run query and return the result (Response.Data) as a bool.
-func (a *Agent) QueryBool(key string, timeout time.Duration) (bool, error) {
-	res, err := a.Query(key, timeout)
-	if err != nil {
-		return false, err
-	}
-
-	return strconv.ParseBool(res.DataS())
-}
-
-// Run query and return the result (Response.Data) as an int.
-func (a *Agent) QueryInt(key string, timeout time.Duration) (int, error) {
-	res, err := a.Query(key, timeout)
-	if err != nil {
-		return 0, err
-	}
-
-	return strconv.Atoi(res.DataS())
-}
-
-// Run query and return the result (Response.Data) as an int64.
-func (a *Agent) QueryInt64(key string, timeout time.Duration) (int64, error) {
-	res, err := a.Query(key, timeout)
-	if err != nil {
-		return 0, err
-	}
-
-	return strconv.ParseInt(res.DataS(), 10, 64)
-}
-
-// Run query and return the result (Response.Data) as an float64.
-func (a *Agent) QueryFloat64(key string, timeout time.Duration) (float64, error) {
-	res, err := a.Query(key, timeout)
-	if err != nil {
-		return 0, err
-	}
-
-	return strconv.ParseFloat(res.DataS(), 64)
-}
-
-/*
-	Run query and convert the result to the most appropriate type. Useful when
-	you want a concrete type but don't know it ahead of time.
-*/
-func (a *Agent) QueryInterface(key string, timeout time.Duration) (interface{}, error) {
-	res, err := a.QueryS(key, timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attempt int64
-	i, err := strconv.ParseInt(res, 10, 64)
-	if err == nil {
-		return i, nil
-	}
-
-	// Attempt float64
-	f, err := strconv.ParseFloat(res, 64)
-	if err == nil {
-		return f, nil
-	}
-
-	// Attempt bool
-	b, err := strconv.ParseBool(res)
-	if err == nil {
-		return b, nil
-	}
-
-	return res, nil
+	return ParseResponse(conn)
 }
 
 /*
@@ -268,7 +159,8 @@ func (a *Agent) DiscoverCPUs(timeout time.Duration) ([]*CPU, error) {
 
 // Call agent.hostname on the zabbix agent.
 func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
-	return a.QueryS("agent.hostname", timeout)
+	res, err := a.Query("agent.hostname", timeout)
+	return res.String(), err
 }
 
 /*
@@ -277,7 +169,12 @@ func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
 	errors in the process.
 */
 func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
-	return a.QueryBool("agent.ping", timeout)
+	res, err := a.Query("agent.ping", timeout)
+	if err != nil {
+		return false, err
+	}
+
+	return res.Bool()
 }
 
 /*
@@ -285,5 +182,6 @@ func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
 	and/or any errors associated with the action.
 */
 func (a *Agent) AgentVersion(timeout time.Duration) (string, error) {
-	return a.QueryS("agent.version", timeout)
+	res, err := a.Query("agent.version", timeout)
+	return res.String(), err
 }

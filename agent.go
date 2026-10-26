@@ -11,8 +11,10 @@ import (
 )
 
 var (
+	// Deprecated: ParseResponse no longer returns this error.
 	DataLengthBufferTooSmall = errors.New("DataLength buffer too small")
-	DataLengthOverflow       = errors.New("DataLength is too large")
+	// Deprecated: ParseResponse no longer returns this error.
+	DataLengthOverflow = errors.New("DataLength is too large")
 
 	// This is the default timeout when contacting a Zabbix Agent.
 	DefaultTimeout = time.Duration(30 * time.Second)
@@ -92,8 +94,29 @@ func (a *Agent) queryJSON(key string, timeout time.Duration) (map[string][]map[s
 		return nil, err
 	}
 
-	err = json.Unmarshal(res.Data, &data)
-	return data, err
+	// Zabbix agents before 4.2 wrap discovery results in {"data": [...]};
+	// newer agents return the bare array.
+	if err = json.Unmarshal(res.Data, &data); err != nil {
+		var list []map[string]any
+		if json.Unmarshal(res.Data, &list) != nil {
+			return nil, err
+		}
+		data["data"] = list
+	}
+	return data, nil
+}
+
+// str returns v if it is a string and "" otherwise, so that a missing or
+// unexpected field in agent output doesn't panic.
+func str(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+// num returns v if it is a JSON number and 0 otherwise.
+func num(v any) float64 {
+	f, _ := v.(float64)
+	return f
 }
 
 // Return an array of Filesystem structs.
@@ -107,8 +130,8 @@ func (a *Agent) DiscoverFilesystems(timeout time.Duration) ([]*Filesystem, error
 
 	for _, f := range data["data"] {
 		filesystem := &Filesystem{
-			Name: f["{#FSNAME}"].(string),
-			Type: f["{#FSTYPE}"].(string),
+			Name: str(f["{#FSNAME}"]),
+			Type: str(f["{#FSTYPE}"]),
 		}
 
 		fs = append(fs, filesystem)
@@ -128,7 +151,7 @@ func (a *Agent) DiscoverNetworkInterfaces(timeout time.Duration) ([]*NetworkInte
 
 	for _, i := range data["data"] {
 		networkIface := &NetworkInterface{
-			Name: i["{#IFNAME}"].(string),
+			Name: str(i["{#IFNAME}"]),
 		}
 
 		in = append(in, networkIface)
@@ -148,8 +171,8 @@ func (a *Agent) DiscoverCPUs(timeout time.Duration) ([]*CPU, error) {
 
 	for _, i := range data["data"] {
 		cpu := &CPU{
-			Number: i["{#CPU.NUMBER}"].(float64),
-			Status: i["{#CPU.STATUS}"].(string),
+			Number: num(i["{#CPU.NUMBER}"]),
+			Status: str(i["{#CPU.STATUS}"]),
 		}
 
 		cpus = append(cpus, cpu)
@@ -161,7 +184,10 @@ func (a *Agent) DiscoverCPUs(timeout time.Duration) ([]*CPU, error) {
 // Call agent.hostname on the zabbix agent.
 func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
 	res, err := a.Query("agent.hostname", timeout)
-	return res.String(), err
+	if err != nil {
+		return "", err
+	}
+	return res.String(), nil
 }
 
 /*
@@ -184,5 +210,8 @@ and/or any errors associated with the action.
 */
 func (a *Agent) AgentVersion(timeout time.Duration) (string, error) {
 	res, err := a.Query("agent.version", timeout)
-	return res.String(), err
+	if err != nil {
+		return "", err
+	}
+	return res.String(), nil
 }

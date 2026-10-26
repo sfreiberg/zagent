@@ -1,10 +1,8 @@
 package zagent
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 )
@@ -83,24 +81,25 @@ func newResponse() *Response {
 	}
 }
 
+// ParseResponse reads a response in the Zabbix wire format: a 5-byte header,
+// the data length as a 64-bit little-endian integer, then the data.
 func ParseResponse(rd io.Reader) (*Response, error) {
 	res := newResponse()
 	dataLength := make([]byte, 8)
 
-	reader := bufio.NewReader(rd)
-	reader.Read(res.Header)
-	reader.Read(dataLength)
-	res.Data, _ = ioutil.ReadAll(reader)
-
-	// Convert dataLength from binary to uint
-	var bytesRead int
-	res.DataLength, bytesRead = binary.Uvarint(dataLength)
-	if bytesRead <= 0 {
-		if bytesRead == 0 {
-			return nil, DataLengthBufferTooSmall
-		}
-		return nil, DataLengthOverflow
+	if _, err := io.ReadFull(rd, res.Header); err != nil {
+		return nil, err
 	}
+	if _, err := io.ReadFull(rd, dataLength); err != nil {
+		return nil, err
+	}
+	res.DataLength = binary.LittleEndian.Uint64(dataLength)
+
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return nil, err
+	}
+	res.Data = data
 
 	return res, nil
 }

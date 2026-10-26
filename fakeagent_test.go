@@ -168,3 +168,62 @@ func TestDiscover(t *testing.T) {
 		t.Fatalf("cpus = %+v", cpus)
 	}
 }
+
+func TestParseResponseLargeLength(t *testing.T) {
+	// Lengths >= 128 were decoded as varints, giving a wrong DataLength.
+	for _, n := range []int{127, 128, 200, 300, 70000} {
+		data := strings.Repeat("x", n)
+		res, err := ParseResponse(bytes.NewReader(frame(data)))
+		if err != nil {
+			t.Fatalf("n=%d: %v", n, err)
+		}
+		if res.DataLength != uint64(n) || len(res.Data) != n {
+			t.Fatalf("n=%d: DataLength = %d, len(Data) = %d", n, res.DataLength, len(res.Data))
+		}
+	}
+}
+
+func TestParseResponseTruncated(t *testing.T) {
+	if _, err := ParseResponse(bytes.NewReader([]byte("ZBXD\x01\x05"))); err == nil {
+		t.Fatal("expected an error for a truncated length")
+	}
+}
+
+func TestAgentErrorsDoNotPanic(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &Agent{Host: "127.0.0.1", Port: ln.Addr().(*net.TCPAddr).Port}
+	ln.Close() // nothing is listening any more
+
+	if _, err := a.AgentHostname(time.Second); err == nil {
+		t.Error("AgentHostname: expected an error")
+	}
+	if _, err := a.AgentVersion(time.Second); err == nil {
+		t.Error("AgentVersion: expected an error")
+	}
+}
+
+func TestDiscoverMalformedAndBareArray(t *testing.T) {
+	a := newFakeAgent(t, map[string]string{
+		// Newer agents return a bare array; unexpected types must not panic.
+		"vfs.fs.discovery":     `[{"{#FSNAME}":"/boot","{#FSTYPE}":"xfs"}]`,
+		"net.if.discovery":     `{"data":[{"{#IFNAME}":7}]}`,
+		"system.cpu.discovery": `{"data":[{}]}`,
+	})
+
+	fs, err := a.DiscoverFilesystems(time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 1 || fs[0].Name != "/boot" || fs[0].Type != "xfs" {
+		t.Fatalf("filesystems = %+v", fs)
+	}
+	if ifaces, err := a.DiscoverNetworkInterfaces(time.Second); err != nil || len(ifaces) != 1 || ifaces[0].Name != "" {
+		t.Fatalf("interfaces = %+v, %v", ifaces, err)
+	}
+	if cpus, err := a.DiscoverCPUs(time.Second); err != nil || len(cpus) != 1 {
+		t.Fatalf("cpus = %+v, %v", cpus, err)
+	}
+}

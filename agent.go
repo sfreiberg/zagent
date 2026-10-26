@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"time"
 )
@@ -56,8 +57,8 @@ func (a *Agent) hostPort() string {
 }
 
 /*
-	Run the check (key) against the Zabbix agent with the specified timeout.
-	If timeout is < 1 DefaultTimeout will be used.
+Run the check (key) against the Zabbix agent with the specified timeout.
+If timeout is < 1 DefaultTimeout will be used.
 */
 func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
 	if timeout < 1 {
@@ -70,7 +71,7 @@ func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
 	}
 	defer conn.Close()
 
-	_, err = fmt.Fprintf(conn, key)
+	_, err = io.WriteString(conn, key)
 	if err != nil {
 		return nil, err
 	}
@@ -79,12 +80,12 @@ func (a *Agent) Query(key string, timeout time.Duration) (*Response, error) {
 }
 
 /*
-	Run query and convert the JSON to a map[string][]map[string]interface{}.
-	This is a raw version of the query and most people are expected to use
-	the Discover* methods.
+Run query and convert the JSON to a map[string][]map[string]interface{}.
+This is a raw version of the query and most people are expected to use
+the Discover* methods.
 */
-func (a *Agent) queryJSON(key string, timeout time.Duration) (map[string][]map[string]interface{}, error) {
-	data := make(map[string][]map[string]interface{})
+func (a *Agent) queryJSON(key string, timeout time.Duration) (map[string][]map[string]any, error) {
+	data := make(map[string][]map[string]any)
 
 	res, err := a.Query(key, timeout)
 	if err != nil {
@@ -164,9 +165,9 @@ func (a *Agent) AgentHostname(timeout time.Duration) (string, error) {
 }
 
 /*
-	Call agent.ping on the zabbix agent. Returns true if it
-	gets the correct response ("1") and doesn't receive any
-	errors in the process.
+Call agent.ping on the zabbix agent. Returns true if it
+gets the correct response ("1") and doesn't receive any
+errors in the process.
 */
 func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
 	res, err := a.Query("agent.ping", timeout)
@@ -178,8 +179,8 @@ func (a *Agent) AgentPing(timeout time.Duration) (bool, error) {
 }
 
 /*
-	Calls agent.version on the zabbix agent and returns the version
-	and/or any errors associated with the action.
+Calls agent.version on the zabbix agent and returns the version
+and/or any errors associated with the action.
 */
 func (a *Agent) AgentVersion(timeout time.Duration) (string, error) {
 	res, err := a.Query("agent.version", timeout)

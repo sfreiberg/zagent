@@ -2,17 +2,33 @@ package zagent
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
+
+// liveAgentHost returns the host from ZABBIX_HOST and skips the test when no
+// Zabbix agent is reachable there (e.g. in CI).
+func liveAgentHost(t *testing.T) string {
+	t.Helper()
+	host := os.Getenv("ZABBIX_HOST")
+	addr := NewAgent(host).hostPort()
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	if err != nil {
+		t.Skipf("no Zabbix agent reachable at %s: %v", addr, err)
+	}
+	conn.Close()
+	return host
+}
 
 // You must set and export the shell variable ZABBIX_HOST in
 // order to specify which host to test against. If you leave
 // this unset it will default to localhost. At least on the
 // Mac. This test is pretty rudimentary.
 func TestAgent(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 	fmt.Println("Testing against:", zabbixHost)
 
 	agent := NewAgent(zabbixHost)
@@ -28,7 +44,7 @@ func TestAgent(t *testing.T) {
 }
 
 func TestAgentPing(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 
 	agent := NewAgent(zabbixHost)
 
@@ -43,7 +59,7 @@ func TestAgentPing(t *testing.T) {
 }
 
 func TestAgentHostname(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 
 	agent := NewAgent(zabbixHost)
 
@@ -60,7 +76,7 @@ func TestAgentHostname(t *testing.T) {
 }
 
 func TestAgentVersion(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 
 	agent := NewAgent(zabbixHost)
 
@@ -77,7 +93,7 @@ func TestAgentVersion(t *testing.T) {
 }
 
 func TestAgentUnsupported(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 	fmt.Println("Testing against:", zabbixHost)
 
 	agent := NewAgent(zabbixHost)
@@ -101,7 +117,7 @@ func TestAgentUnsupported(t *testing.T) {
 }
 
 func TestQueryInterface(t *testing.T) {
-	zabbixHost := os.Getenv("ZABBIX_HOST")
+	zabbixHost := liveAgentHost(t)
 
 	agent := NewAgent(zabbixHost)
 

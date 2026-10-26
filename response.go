@@ -50,10 +50,10 @@ func (r *Response) Float64() (float64, error) {
 }
 
 /*
-	Convert Response.Data to the most appropriate type. Useful when
-	you want a concrete type but don't know it ahead of time.
+Convert Response.Data to the most appropriate type. Useful when
+you want a concrete type but don't know it ahead of time.
 */
-func (r *Response) Interface() interface{} {
+func (r *Response) Interface() any {
 	// Attempt int64
 	i, err := strconv.ParseInt(r.String(), 10, 64)
 	if err == nil {
